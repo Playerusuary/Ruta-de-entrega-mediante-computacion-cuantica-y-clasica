@@ -4,6 +4,21 @@ Las dos partes del proyecto tienen que medir las rutas EXACTAMENTE igual: si
 cada una usa su propia formula de distancia, la comparacion final no significa
 nada. Todo lo que sea "que es un punto" y "cuanto mide una ruta" vive aqui y
 nadie lo duplica en su modulo.
+
+Modelo de ciudad
+----------------
+La ciudad es una CUADRICULA tipo Manhattan: calles horizontales y verticales
+que se cruzan en nodos de coordenadas enteras (0..GRID_SIZE). Los puntos de
+entrega caen sobre esos nodos, y el vehiculo circula por las calles, nunca en
+diagonal. Por eso la metrica por defecto es Manhattan (|dx| + |dy|).
+
+Ese modelo de cuadricula viene de la rama del compañero: encaja mejor con el
+"mapa tipo maps" del enunciado que un canvas libre con distancia euclidiana.
+La euclidiana se conserva como metrica opcional para poder comparar los dos
+escenarios en la presentacion.
+
+Las coordenadas que se exponen son de CUADRICULA, no pixeles. El frontend las
+escala al tamaño del canvas que quiera dibujar.
 """
 
 from __future__ import annotations
@@ -11,16 +26,34 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from enum import Enum
 from itertools import permutations
 from typing import Iterator, List, Optional, Sequence, Tuple
 
-# Etiquetas legibles para los puntos. El primero es siempre la base.
+# Numero de manzanas por lado. Con 6 hay nodos en 0..6, o sea 7 calles en cada
+# direccion y un tablero de 6x6 manzanas.
+GRID_SIZE = 6
+
+# Etiquetas legibles. El primer punto es siempre el deposito / base.
 _ETIQUETAS = ["Base", "A", "B", "C", "D", "E", "F", "G"]
+
+# Tolerancia para comparar distancias. Con metrica euclidiana los empates son
+# flotantes y no se pueden comparar con ==.
+TOLERANCIA = 1e-9
+
+
+class Metrica(str, Enum):
+    """Como se mide la distancia entre dos puntos."""
+
+    # El vehiculo circula por las calles de la cuadricula (default).
+    MANHATTAN = "manhattan"
+    # Linea recta; sirve para contrastar en la presentacion.
+    EUCLIDIANA = "euclidiana"
 
 
 @dataclass(frozen=True)
 class Punto:
-    """Un destino en el canvas. Las coordenadas son pixeles."""
+    """Un destino sobre un nodo de la cuadricula."""
 
     id: int
     x: float
@@ -28,42 +61,51 @@ class Punto:
     etiqueta: str = ""
 
 
-def distancia(a: Punto, b: Punto) -> float:
-    """Distancia euclidiana entre dos puntos."""
+def distancia(a: Punto, b: Punto, metrica: Metrica = Metrica.MANHATTAN) -> float:
+    """Distancia entre dos puntos segun la metrica elegida."""
+    if metrica == Metrica.MANHATTAN:
+        return abs(a.x - b.x) + abs(a.y - b.y)
     return math.hypot(b.x - a.x, b.y - a.y)
 
 
-def longitud_ruta(ruta: Sequence[Punto], cerrada: bool = False) -> float:
+def longitud_ruta(
+    ruta: Sequence[Punto],
+    cerrada: bool = False,
+    metrica: Metrica = Metrica.MANHATTAN,
+) -> float:
     """Suma de los tramos consecutivos de una ruta.
 
-    cerrada=False (default) es el caso del enunciado: el dron visita los puntos
-    y se queda en el ultimo. cerrada=True agrega el tramo de regreso a la base,
-    que es el escenario opcional para comparar ambos modos.
+    cerrada=False (default) es el caso del enunciado: el vehiculo visita los
+    puntos y se queda en el ultimo. cerrada=True agrega el tramo de regreso al
+    deposito, que es el escenario del TSP clasico.
     """
     if len(ruta) < 2:
         return 0.0
-    total = sum(distancia(ruta[i], ruta[i + 1]) for i in range(len(ruta) - 1))
+    total = sum(distancia(ruta[i], ruta[i + 1], metrica) for i in range(len(ruta) - 1))
     if cerrada:
-        total += distancia(ruta[-1], ruta[0])
+        total += distancia(ruta[-1], ruta[0], metrica)
     return total
 
 
 def rutas_posibles(puntos: Sequence[Punto]) -> Iterator[Tuple[Punto, ...]]:
-    """Genera todas las rutas dejando el primer punto fijo como base.
+    """Genera todas las rutas dejando el primer punto fijo como deposito.
 
-    Fijar la base es lo que baja 5! = 120 permutaciones a 4! = 24 rutas.
+    Fijar el deposito es lo que baja 5! = 120 permutaciones a 4! = 24 rutas.
     El orden que produce itertools.permutations es determinista, asi que dos
-    corridas con los mismos puntos evaluan las rutas en la misma secuencia.
+    corridas con los mismos puntos generan las rutas en la misma secuencia.
+
+    Las dos simulaciones parten de ESTA misma lista: el modo clasico las prueba
+    una por una, el cuantico las pone todas en superposicion.
     """
     if not puntos:
         return
-    base, resto = puntos[0], tuple(puntos[1:])
+    deposito, resto = puntos[0], tuple(puntos[1:])
     for orden in permutations(resto):
-        yield (base,) + orden
+        yield (deposito,) + orden
 
 
 def total_rutas(n_puntos: int) -> int:
-    """Cuantas rutas hay para n puntos con la base fija: (n-1)!
+    """Cuantas rutas hay para n puntos con el deposito fijo: (n-1)!
 
     Aqui se ve la explosion combinatoria que motiva todo el proyecto:
     5 puntos -> 24 rutas, 8 -> 5040, 11 -> 3628800.
@@ -71,15 +113,66 @@ def total_rutas(n_puntos: int) -> int:
     return math.factorial(n_puntos - 1) if n_puntos > 1 else 1
 
 
+@dataclass(frozen=True)
+class RutaMedida:
+    """Una ruta ya evaluada. Es la unidad que comparten ambos modos."""
+
+    id: int
+    # Ids de los puntos en orden de recorrido. Si la ruta es cerrada, el
+    # deposito aparece tambien al final para que el frontend dibuje el regreso.
+    orden: List[int]
+    distancia: float
+
+
+def medir_todas_las_rutas(
+    puntos: Sequence[Punto],
+    cerrada: bool = False,
+    metrica: Metrica = Metrica.MANHATTAN,
+) -> List[RutaMedida]:
+    """Calcula todas las rutas posibles con su distancia total.
+
+    Es el punto de partida de los dos modos, para garantizar que evaluan
+    exactamente el mismo conjunto con exactamente la misma formula.
+    """
+    medidas: List[RutaMedida] = []
+    for i, ruta in enumerate(rutas_posibles(puntos)):
+        ids = [p.id for p in ruta]
+        if cerrada:
+            ids = ids + [ruta[0].id]
+        medidas.append(
+            RutaMedida(
+                id=i,
+                orden=ids,
+                distancia=round(longitud_ruta(ruta, cerrada=cerrada, metrica=metrica), 4),
+            )
+        )
+    return medidas
+
+
+def indices_mas_cortas(rutas: Sequence[RutaMedida]) -> List[int]:
+    """Ids de las rutas de distancia minima (puede haber empate).
+
+    Los empates son la norma, no la excepcion: en una ruta cerrada, una ruta y
+    su reversa recorren las mismas calles y miden identico. Con metrica
+    Manhattan sobre enteros ademas coinciden rutas que no son reversas entre si.
+    Ignorar esto es lo que rompe el modo cuantico, que necesita saber cuantos
+    estados marca su oraculo.
+    """
+    if not rutas:
+        return []
+    minima = min(r.distancia for r in rutas)
+    return [r.id for r in rutas if math.isclose(r.distancia, minima, abs_tol=TOLERANCIA)]
+
+
 def generar_puntos(
     n: int = 5,
-    ancho: int = 800,
-    alto: int = 600,
+    grid_size: int = GRID_SIZE,
     semilla: Optional[int] = None,
-    margen: int = 60,
-    separacion_minima: float = 90.0,
 ) -> List[Punto]:
-    """Genera n puntos al azar dentro del canvas, sin encimarse.
+    """Coloca n destinos sobre nodos distintos de la cuadricula.
+
+    El punto 0 es el deposito. Las coordenadas son enteras (0..grid_size); el
+    frontend las escala a pixeles.
 
     La semilla importa para el proyecto: pasando la misma semilla, la parte
     clasica y la cuantica corren sobre EL MISMO mapa, que es lo unico que hace
@@ -88,27 +181,19 @@ def generar_puntos(
     if n < 2:
         raise ValueError("se necesitan al menos 2 puntos")
 
+    nodos = [(x, y) for x in range(grid_size + 1) for y in range(grid_size + 1)]
+    if n > len(nodos):
+        raise ValueError(
+            "no caben %d puntos en una cuadricula de %dx%d" % (n, grid_size, grid_size)
+        )
+
     rng = random.Random(semilla)
-    puntos: List[Punto] = []
-
-    # Con pocos puntos y separacion holgada esto converge rapido; el tope de
-    # intentos solo evita un bucle infinito si piden un canvas muy apretado.
-    for i in range(n):
-        for _ in range(500):
-            x = rng.uniform(margen, ancho - margen)
-            y = rng.uniform(margen, alto - margen)
-            candidato = Punto(id=i, x=round(x, 2), y=round(y, 2), etiqueta=_etiqueta(i))
-            if all(distancia(candidato, p) >= separacion_minima for p in puntos):
-                puntos.append(candidato)
-                break
-        else:
-            raise ValueError(
-                "no cabe otro punto con esa separacion minima; "
-                "reduce n o separacion_minima, o agranda el canvas"
-            )
-
-    return puntos
+    elegidos = rng.sample(nodos, n)
+    return [
+        Punto(id=i, x=float(x), y=float(y), etiqueta=_etiqueta(i))
+        for i, (x, y) in enumerate(elegidos)
+    ]
 
 
 def _etiqueta(i: int) -> str:
-    return _ETIQUETAS[i] if i < len(_ETIQUETAS) else f"P{i}"
+    return _ETIQUETAS[i] if i < len(_ETIQUETAS) else "P%d" % i
