@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import clasico  # noqa: E402
 from app.clasico import OrdenEvaluacion  # noqa: E402
 from app.geometria import (  # noqa: E402
-    Metrica,
     Punto,
     distancia,
     generar_puntos,
@@ -33,7 +32,7 @@ def _cuadrado():
     """Cuatro esquinas de un cuadrado de lado 10, con el deposito en el origen.
 
     Sirve porque la respuesta se conoce a mano: recorrer el perimetro
-    (0 -> 1 -> 2 -> 3) mide 30 en euclidiana abierta y 40 cerrada.
+    (0 -> 1 -> 2 -> 3) mide 30 abierto y 40 cerrado.
     """
     return [
         Punto(id=0, x=0, y=0, etiqueta="Base"),
@@ -44,32 +43,19 @@ def _cuadrado():
 
 
 class TestGeometria(unittest.TestCase):
-    def test_distancia_euclidiana(self):
+    def test_distancia_va_por_las_calles_no_en_diagonal(self):
         a, b = Punto(id=0, x=0, y=0), Punto(id=1, x=3, y=4)
-        self.assertAlmostEqual(distancia(a, b, Metrica.EUCLIDIANA), 5.0)
-
-    def test_distancia_manhattan_va_por_las_calles(self):
-        a, b = Punto(id=0, x=0, y=0), Punto(id=1, x=3, y=4)
-        # Por calles son 3 + 4 = 7, no la diagonal de 5.
-        self.assertAlmostEqual(distancia(a, b, Metrica.MANHATTAN), 7.0)
-
-    def test_manhattan_nunca_es_menor_que_euclidiana(self):
-        puntos = generar_puntos(n=6, semilla=4)
-        for i, a in enumerate(puntos):
-            for b in puntos[i + 1 :]:
-                self.assertGreaterEqual(
-                    distancia(a, b, Metrica.MANHATTAN) + 1e-9,
-                    distancia(a, b, Metrica.EUCLIDIANA),
-                )
+        # Por calles son 3 + 4 = 7, no la diagonal euclidiana de 5.
+        self.assertAlmostEqual(distancia(a, b), 7.0)
 
     def test_longitud_abierta_no_incluye_regreso(self):
         self.assertAlmostEqual(
-            longitud_ruta(_cuadrado(), cerrada=False, metrica=Metrica.EUCLIDIANA), 30.0
+            longitud_ruta(_cuadrado(), cerrada=False), 30.0
         )
 
     def test_longitud_cerrada_agrega_el_tramo_de_vuelta(self):
         self.assertAlmostEqual(
-            longitud_ruta(_cuadrado(), cerrada=True, metrica=Metrica.EUCLIDIANA), 40.0
+            longitud_ruta(_cuadrado(), cerrada=True), 40.0
         )
 
     def test_ruta_de_un_punto_mide_cero(self):
@@ -160,7 +146,7 @@ class TestSimulacionClasica(unittest.TestCase):
         self.assertEqual([p.indice for p in r.pasos], [1, 2, 3, 4, 5, 6])
 
     def test_encuentra_el_perimetro_como_ruta_mas_corta(self):
-        r = clasico.simular(_cuadrado(), cerrada=False, metrica=Metrica.EUCLIDIANA)
+        r = clasico.simular(_cuadrado(), cerrada=False)
         self.assertAlmostEqual(r.mejor_distancia, 30.0)
         # 0->1->2->3 y 0->3->2->1 son el mismo perimetro recorrido al reves.
         self.assertIn(r.mejor_ruta, ([0, 1, 2, 3], [0, 3, 2, 1]))
@@ -221,12 +207,6 @@ class TestSimulacionClasica(unittest.TestCase):
         a = clasico.simular(puntos)
         b = clasico.simular(puntos)
         self.assertEqual([p.ruta for p in a.pasos], [p.ruta for p in b.pasos])
-
-    def test_la_metrica_cambia_el_resultado(self):
-        puntos = generar_puntos(n=5, semilla=15)
-        man = clasico.simular(puntos, metrica=Metrica.MANHATTAN)
-        euc = clasico.simular(puntos, metrica=Metrica.EUCLIDIANA)
-        self.assertNotAlmostEqual(man.mejor_distancia, euc.mejor_distancia)
 
     def test_menos_de_dos_puntos_es_error(self):
         with self.assertRaises(ValueError):

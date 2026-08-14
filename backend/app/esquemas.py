@@ -12,7 +12,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from .clasico import OrdenEvaluacion
-from .geometria import GRID_SIZE, Metrica
+from .geometria import GRID_SIZE
 
 
 class PuntoOut(BaseModel):
@@ -58,13 +58,6 @@ class _BaseSimulacionRequest(BaseModel):
             "True: escenario opcional donde regresa al deposito."
         ),
     )
-    metrica: Metrica = Field(
-        Metrica.MANHATTAN,
-        description=(
-            "manhattan: circula por las calles de la cuadricula (default). "
-            "euclidiana: linea recta. Ambos modos deben usar la MISMA metrica."
-        ),
-    )
     semilla: Optional[int] = None
 
 
@@ -104,7 +97,6 @@ class SimulacionClasicaResponse(BaseModel):
     puntos: List[PuntoOut]
     rutas: List[RutaOut]
     cerrada: bool
-    metrica: Metrica
     orden: OrdenEvaluacion
     total_rutas: int = Field(..., description="(n-1)! con el deposito fijo.")
     pasos: List[PasoClasicoOut] = Field(..., description="Traza completa, en orden de evaluacion.")
@@ -139,7 +131,6 @@ class SimulacionCuanticaResponse(BaseModel):
     puntos: List[PuntoOut]
     rutas: List[RutaOut]
     cerrada: bool
-    metrica: Metrica
     total_rutas: int
     pasos: List[PasoCuanticoOut]
     iteraciones: int = Field(
@@ -165,7 +156,6 @@ class EscenarioResponse(BaseModel):
     puntos: List[PuntoOut]
     rutas: List[RutaOut]
     cerrada: bool
-    metrica: Metrica
     semilla: Optional[int] = None
     clasico: SimulacionClasicaResponse
     cuantico: SimulacionCuanticaResponse

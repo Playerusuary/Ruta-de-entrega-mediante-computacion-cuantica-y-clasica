@@ -64,7 +64,6 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Sequence
 
 from .geometria import (
-    Metrica,
     Punto,
     RutaMedida,
     indices_mas_cortas,
@@ -106,7 +105,6 @@ class ResultadoCuantico:
     puntos: List[Punto]
     rutas: List[RutaMedida]
     cerrada: bool
-    metrica: Metrica
     total_rutas: int
     pasos: List[PasoCuantico]
     # Iteraciones de Grover ejecutadas (sin contar el paso 0). Es el numero que
@@ -135,7 +133,6 @@ def iteraciones_optimas(n_rutas: int, n_marcadas: int) -> int:
 def simular(
     puntos: Sequence[Punto],
     cerrada: bool = False,
-    metrica: Metrica = Metrica.MANHATTAN,
     semilla: Optional[int] = None,
     iteraciones: Optional[int] = None,
 ) -> ResultadoCuantico:
@@ -144,7 +141,6 @@ def simular(
     Args:
         puntos: destinos; el primero es el deposito y queda fijo.
         cerrada: si el vehiculo regresa al deposito.
-        metrica: la misma que use el modo clasico, o la comparacion no vale.
         semilla: hace reproducible la medicion final ponderada.
         iteraciones: forzar un numero de iteraciones. Sirve para demostrar que
             pasarse del optimo EMPEORA el resultado. None = usar el optimo.
@@ -157,7 +153,7 @@ def simular(
         raise ValueError("se necesitan al menos 2 puntos para armar una ruta")
 
     puntos = list(puntos)
-    rutas = medir_todas_las_rutas(puntos, cerrada=cerrada, metrica=metrica)
+    rutas = medir_todas_las_rutas(puntos, cerrada=cerrada)
     n = len(rutas)
     marcadas = indices_mas_cortas(rutas)
     es_marcada = [r.id in set(marcadas) for r in rutas]
@@ -199,7 +195,6 @@ def simular(
         puntos=puntos,
         rutas=rutas,
         cerrada=cerrada,
-        metrica=metrica,
         total_rutas=total_rutas(len(puntos)),
         pasos=pasos,
         iteraciones=k,

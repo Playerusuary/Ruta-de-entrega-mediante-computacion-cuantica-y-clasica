@@ -24,7 +24,6 @@ export interface Ruta {
   distancia: number;
 }
 
-export type Metrica = "manhattan" | "euclidiana";
 export type OrdenEvaluacion = "secuencial" | "aleatorio";
 
 /** Un frame del modo clasico: una ruta evaluada. */
@@ -93,7 +92,6 @@ export interface Escenario {
   puntos: Punto[];
   rutas: Ruta[];
   cerrada: boolean;
-  metrica: Metrica;
   semilla: number | null;
   clasico: SimulacionClasica;
   cuantico: SimulacionCuantica;
@@ -105,7 +103,6 @@ export interface Escenario {
 export interface OpcionesEscenario {
   n: number;
   cerrada: boolean;
-  metrica: Metrica;
   orden?: OrdenEvaluacion;
   semilla?: number | null;
   grid_size?: number;

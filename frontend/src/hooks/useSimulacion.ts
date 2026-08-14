@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { factorial, obtenerEscenario } from "@/lib/api";
-import type {
-  Escenario,
-  EstadoSimulacion,
-  Metrica,
-  ModoSimulacion,
-} from "@/lib/tipos";
+import type { Escenario, EstadoSimulacion, ModoSimulacion } from "@/lib/tipos";
 
 /**
  * Toda la lógica de la pantalla.
@@ -30,7 +25,6 @@ const INTERVALO_MS_CUANTICO = 1100;
 export function useSimulacion() {
   const [n, setN] = useState<4 | 5>(5);
   const [cerrada, setCerrada] = useState(false);
-  const [metrica, setMetrica] = useState<Metrica>("manhattan");
 
   const [escenario, setEscenario] = useState<Escenario | null>(null);
   const [modoActivo, setModoActivo] = useState<ModoSimulacion | null>(null);
@@ -62,7 +56,7 @@ export function useSimulacion() {
 
   /** Pide un escenario nuevo y deja el mapa listo, sin animar nada todavía. */
   const cargarEscenario = useCallback(
-    async (opciones: { n: 4 | 5; cerrada: boolean; metrica: Metrica }) => {
+    async (opciones: { n: 4 | 5; cerrada: boolean }) => {
       reiniciarVista();
       setEstado("cargando");
       setError(null);
@@ -81,7 +75,7 @@ export function useSimulacion() {
 
   // Mapa inicial al abrir la página.
   useEffect(() => {
-    cargarEscenario({ n: 5, cerrada: false, metrica: "manhattan" });
+    cargarEscenario({ n: 5, cerrada: false });
   }, [cargarEscenario]);
 
   /** Reproduce la traza del modo elegido sobre el escenario ya cargado. */
@@ -120,31 +114,23 @@ export function useSimulacion() {
   );
 
   const nuevoMapa = useCallback(() => {
-    cargarEscenario({ n, cerrada, metrica });
-  }, [cargarEscenario, n, cerrada, metrica]);
+    cargarEscenario({ n, cerrada });
+  }, [cargarEscenario, n, cerrada]);
 
   const cambiarN = useCallback(
     (valor: 4 | 5) => {
       setN(valor);
-      cargarEscenario({ n: valor, cerrada, metrica });
+      cargarEscenario({ n: valor, cerrada });
     },
-    [cargarEscenario, cerrada, metrica],
+    [cargarEscenario, cerrada],
   );
 
   const cambiarCerrada = useCallback(
     (valor: boolean) => {
       setCerrada(valor);
-      cargarEscenario({ n, cerrada: valor, metrica });
+      cargarEscenario({ n, cerrada: valor });
     },
-    [cargarEscenario, n, metrica],
-  );
-
-  const cambiarMetrica = useCallback(
-    (valor: Metrica) => {
-      setMetrica(valor);
-      cargarEscenario({ n, cerrada, metrica: valor });
-    },
-    [cargarEscenario, n, cerrada],
+    [cargarEscenario, n],
   );
 
   /** Vuelve a animar el mismo modo sobre el mismo mapa. */
@@ -183,10 +169,8 @@ export function useSimulacion() {
     // configuración
     n,
     cerrada,
-    metrica,
     cambiarN,
     cambiarCerrada,
-    cambiarMetrica,
     // datos
     escenario,
     error,

@@ -10,12 +10,11 @@ Modelo de ciudad
 La ciudad es una CUADRICULA tipo Manhattan: calles horizontales y verticales
 que se cruzan en nodos de coordenadas enteras (0..GRID_SIZE). Los puntos de
 entrega caen sobre esos nodos, y el vehiculo circula por las calles, nunca en
-diagonal. Por eso la metrica por defecto es Manhattan (|dx| + |dy|).
+diagonal. Por eso la distancia es Manhattan (|dx| + |dy|) y no hay otra
+metrica: no seria fiel al modelo permitir que el vehiculo corte en diagonal.
 
 Ese modelo de cuadricula viene de la rama del compañero: encaja mejor con el
-"mapa tipo maps" del enunciado que un canvas libre con distancia euclidiana.
-La euclidiana se conserva como metrica opcional para poder comparar los dos
-escenarios en la presentacion.
+"mapa tipo maps" del enunciado que un canvas libre con distancia en linea recta.
 
 Las coordenadas que se exponen son de CUADRICULA, no pixeles. El frontend las
 escala al tamaño del canvas que quiera dibujar.
@@ -26,7 +25,6 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from enum import Enum
 from itertools import permutations
 from typing import Iterator, List, Optional, Sequence, Tuple
 
@@ -37,18 +35,8 @@ GRID_SIZE = 6
 # Etiquetas legibles. El primer punto es siempre el deposito / base.
 _ETIQUETAS = ["Base", "A", "B", "C", "D", "E", "F", "G"]
 
-# Tolerancia para comparar distancias. Con metrica euclidiana los empates son
-# flotantes y no se pueden comparar con ==.
+# Tolerancia para comparar distancias al detectar empates.
 TOLERANCIA = 1e-9
-
-
-class Metrica(str, Enum):
-    """Como se mide la distancia entre dos puntos."""
-
-    # El vehiculo circula por las calles de la cuadricula (default).
-    MANHATTAN = "manhattan"
-    # Linea recta; sirve para contrastar en la presentacion.
-    EUCLIDIANA = "euclidiana"
 
 
 @dataclass(frozen=True)
@@ -61,18 +49,12 @@ class Punto:
     etiqueta: str = ""
 
 
-def distancia(a: Punto, b: Punto, metrica: Metrica = Metrica.MANHATTAN) -> float:
-    """Distancia entre dos puntos segun la metrica elegida."""
-    if metrica == Metrica.MANHATTAN:
-        return abs(a.x - b.x) + abs(a.y - b.y)
-    return math.hypot(b.x - a.x, b.y - a.y)
+def distancia(a: Punto, b: Punto) -> float:
+    """Distancia Manhattan: el vehiculo va por las calles, nunca en diagonal."""
+    return abs(a.x - b.x) + abs(a.y - b.y)
 
 
-def longitud_ruta(
-    ruta: Sequence[Punto],
-    cerrada: bool = False,
-    metrica: Metrica = Metrica.MANHATTAN,
-) -> float:
+def longitud_ruta(ruta: Sequence[Punto], cerrada: bool = False) -> float:
     """Suma de los tramos consecutivos de una ruta.
 
     cerrada=False (default) es el caso del enunciado: el vehiculo visita los
@@ -81,9 +63,9 @@ def longitud_ruta(
     """
     if len(ruta) < 2:
         return 0.0
-    total = sum(distancia(ruta[i], ruta[i + 1], metrica) for i in range(len(ruta) - 1))
+    total = sum(distancia(ruta[i], ruta[i + 1]) for i in range(len(ruta) - 1))
     if cerrada:
-        total += distancia(ruta[-1], ruta[0], metrica)
+        total += distancia(ruta[-1], ruta[0])
     return total
 
 
@@ -125,9 +107,7 @@ class RutaMedida:
 
 
 def medir_todas_las_rutas(
-    puntos: Sequence[Punto],
-    cerrada: bool = False,
-    metrica: Metrica = Metrica.MANHATTAN,
+    puntos: Sequence[Punto], cerrada: bool = False
 ) -> List[RutaMedida]:
     """Calcula todas las rutas posibles con su distancia total.
 
@@ -143,7 +123,7 @@ def medir_todas_las_rutas(
             RutaMedida(
                 id=i,
                 orden=ids,
-                distancia=round(longitud_ruta(ruta, cerrada=cerrada, metrica=metrica), 4),
+                distancia=round(longitud_ruta(ruta, cerrada=cerrada), 4),
             )
         )
     return medidas
@@ -153,7 +133,7 @@ def indices_mas_cortas(rutas: Sequence[RutaMedida]) -> List[int]:
     """Ids de las rutas de distancia minima (puede haber empate).
 
     Los empates son la norma, no la excepcion: en una ruta cerrada, una ruta y
-    su reversa recorren las mismas calles y miden identico. Con metrica
+    su reversa recorren las mismas calles y miden identico. Con distancia
     Manhattan sobre enteros ademas coinciden rutas que no son reversas entre si.
     Ignorar esto es lo que rompe el modo cuantico, que necesita saber cuantos
     estados marca su oraculo.

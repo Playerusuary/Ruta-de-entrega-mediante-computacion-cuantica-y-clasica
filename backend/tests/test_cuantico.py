@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import clasico, cuantico  # noqa: E402
-from app.geometria import Metrica, Punto, generar_puntos, medir_todas_las_rutas  # noqa: E402
+from app.geometria import Punto, generar_puntos, medir_todas_las_rutas  # noqa: E402
 
 
 class TestIteracionesOptimas(unittest.TestCase):
@@ -130,9 +130,9 @@ class TestSimulacionCuantica(unittest.TestCase):
 class TestAcuerdoEntreLosDosModos(unittest.TestCase):
     """La prueba que sostiene todo el proyecto: ambos modos deben coincidir."""
 
-    def _comparar(self, puntos, cerrada, metrica):
-        c = clasico.simular(puntos, cerrada=cerrada, metrica=metrica)
-        q = cuantico.simular(puntos, cerrada=cerrada, metrica=metrica)
+    def _comparar(self, puntos, cerrada):
+        c = clasico.simular(puntos, cerrada=cerrada)
+        q = cuantico.simular(puntos, cerrada=cerrada)
         # Misma distancia minima encontrada.
         self.assertAlmostEqual(
             c.mejor_distancia, min(r.distancia for r in q.rutas), places=6
@@ -142,22 +142,18 @@ class TestAcuerdoEntreLosDosModos(unittest.TestCase):
         # Y ambos evaluaron el mismo catalogo de rutas.
         self.assertEqual([r.orden for r in c.rutas], [r.orden for r in q.rutas])
 
-    def test_coinciden_en_manhattan_abierta(self):
-        for semilla in range(6):
-            self._comparar(generar_puntos(n=5, semilla=semilla), False, Metrica.MANHATTAN)
+    def test_coinciden_en_ruta_abierta(self):
+        for semilla in range(8):
+            self._comparar(generar_puntos(n=5, semilla=semilla), False)
 
-    def test_coinciden_en_manhattan_cerrada(self):
-        for semilla in range(6):
-            self._comparar(generar_puntos(n=5, semilla=semilla), True, Metrica.MANHATTAN)
-
-    def test_coinciden_en_euclidiana(self):
-        for semilla in range(6):
-            self._comparar(generar_puntos(n=5, semilla=semilla), False, Metrica.EUCLIDIANA)
+    def test_coinciden_en_ruta_cerrada(self):
+        for semilla in range(8):
+            self._comparar(generar_puntos(n=5, semilla=semilla), True)
 
     def test_el_cuantico_usa_muchisimas_menos_consultas(self):
         # El titular del proyecto: 24 evaluaciones contra 2 o 3 iteraciones.
         # El numero exacto depende de cuantas rutas empatan en la minima (M),
-        # y con metrica Manhattan sobre enteros los empates son la norma.
+        # y con distancia Manhattan sobre enteros los empates son la norma.
         for semilla in range(8):
             puntos = generar_puntos(n=5, semilla=semilla)
             c = clasico.simular(puntos)
@@ -178,7 +174,7 @@ class TestAcuerdoEntreLosDosModos(unittest.TestCase):
 
     def test_el_catalogo_de_rutas_es_identico_al_compartido(self):
         puntos = generar_puntos(n=5, semilla=2)
-        compartido = medir_todas_las_rutas(puntos, cerrada=False, metrica=Metrica.MANHATTAN)
+        compartido = medir_todas_las_rutas(puntos, cerrada=False)
         q = cuantico.simular(puntos)
         self.assertEqual([r.orden for r in compartido], [r.orden for r in q.rutas])
 

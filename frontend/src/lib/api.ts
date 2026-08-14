@@ -36,7 +36,6 @@ export async function obtenerEscenario(
   const params = new URLSearchParams({
     n: String(opciones.n),
     cerrada: String(opciones.cerrada),
-    metrica: opciones.metrica,
   });
   if (opciones.orden) params.set("orden", opciones.orden);
   if (opciones.grid_size) params.set("grid_size", String(opciones.grid_size));

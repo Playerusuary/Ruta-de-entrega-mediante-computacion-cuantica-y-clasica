@@ -59,20 +59,20 @@ distancia y probabilidad se calcula en el backend y viaja por API.
 
 | Componente | Responsable | Estado |
 |---|---|---|
-| Geometría compartida (cuadrícula, métricas, catálogo de rutas) | — compartido — | ✅ Listo |
+| Geometría compartida (cuadrícula, distancias, catálogo de rutas) | — compartido — | ✅ Listo |
 | Contrato de la API (esquemas Pydantic) | — compartido — | ✅ Listo |
 | Generador de mapas con semilla reproducible | — compartido — | ✅ Listo |
 | **Parte 1 — Simulación clásica (bit)**, backend | Daniel | ✅ Listo |
 | **Parte 2 — Simulación cuántica (qubit)**, backend | compañero | ✅ Portado · **pendiente su revisión** |
 | Endpoint `/escenario` (ambos modos en una llamada) | compartido | ✅ Listo |
-| Pruebas del backend | compartido | ✅ 57 pruebas |
-| Canvas compartido (cuadrícula + puntos + rutas) | compartido | ⬜ Pendiente |
-| Frontend Parte 1 (animación clásica) | Daniel | ⬜ Pendiente |
-| Frontend Parte 2 (animación cuántica) | compañero | ⬜ Pendiente |
+| Pruebas del backend | compartido | ✅ 53 pruebas |
+| Canvas compartido (`CityMap`) | compartido | ✅ Portado de `Analisar` |
+| Frontend Parte 1 (animación clásica) | Daniel | ✅ Listo |
+| Frontend Parte 2 (animación cuántica) | compañero | ✅ Portado · **pendiente su revisión** |
 
-> El backend está completo y verificado end-to-end. El frontend sigue siendo el
-> scaffold por defecto de Next.js: los componentes de la rama `Analisar`
-> (`CityMap`, `Controles`, `useSimulacion`) están pendientes de portar.
+> Backend y frontend corren y están verificados end-to-end. Lo que queda es que
+> el compañero revise los dos cambios que se hicieron sobre su lógica cuántica,
+> detallados más abajo.
 
 ---
 
@@ -94,7 +94,7 @@ Corren con la librería estándar, sin instalar nada extra:
 
 ```bash
 cd backend
-python3 -m unittest discover -s tests -v      # 57 pruebas
+python3 -m unittest discover -s tests -v      # 53 pruebas
 ```
 
 ### Frontend
@@ -119,16 +119,12 @@ en diagonal.
 Este modelo viene de la rama del compañero y encaja mejor con el *"mapa tipo
 maps"* del enunciado que un canvas libre con distancia en línea recta.
 
-| Métrica | Fórmula | Cuándo |
-|---|---|---|
-| `manhattan` (default) | `\|dx\| + \|dy\|` | El vehículo va por las calles. |
-| `euclidiana` | `√(dx² + dy²)` | Línea recta; sirve para contrastar. |
+La distancia es **Manhattan** (`|dx| + |dy|`) y **no es configurable**: si el
+vehículo va por las calles, permitirle cortar en diagonal no sería fiel al
+modelo. Los dos modos la comparten, que es lo que hace válida la comparación.
 
 Las coordenadas que expone la API son **de cuadrícula, no píxeles** — el
 frontend las escala al canvas que quiera dibujar.
-
-> **Ambos modos deben correr con la misma métrica.** Es la primera forma de
-> arruinar la comparación sin darse cuenta.
 
 ---
 
@@ -138,7 +134,7 @@ frontend las escala al canvas que quiera dibujar.
 .
 ├── backend/                    Lógica en Python
 │   ├── app/
-│   │   ├── geometria.py        ← COMPARTIDO  cuadrícula, métricas, catálogo de rutas
+│   │   ├── geometria.py        ← COMPARTIDO  cuadrícula, distancias, catálogo de rutas
 │   │   ├── esquemas.py         ← COMPARTIDO  contrato de la API (Pydantic)
 │   │   ├── clasico.py          ← Parte 1     fuerza bruta, una ruta a la vez
 │   │   ├── cuantico.py         ← Parte 2     amplificación de amplitud (Grover)
@@ -147,7 +143,11 @@ frontend las escala al canvas que quiera dibujar.
 │   └── requirements.txt
 │
 └── frontend/                   Visualización en Next.js
-    └── src/app/
+    └── src/
+        ├── app/page.tsx        pantalla principal
+        ├── components/         CityMap (mapa SVG) y Controles
+        ├── hooks/              useSimulacion: reproduce las trazas
+        └── lib/                tipos, cliente de API, geometría del SVG
 ```
 
 ### Decisión de diseño: el backend manda la traza completa
@@ -185,7 +185,6 @@ curl "http://127.0.0.1:8000/api/v1/escenario?n=5&semilla=42"
 | `n` | `5` | 2–8 destinos |
 | `grid_size` | `6` | Manzanas por lado |
 | `cerrada` | `false` | `true` = regresa al depósito |
-| `metrica` | `manhattan` | o `euclidiana` |
 | `orden` | `secuencial` | o `aleatorio` (modo clásico) |
 | `semilla` | — | Fija el mapa y la medición final |
 
@@ -205,7 +204,7 @@ El detalle completo de ambas respuestas está en
 
 ### Los empates son la norma, no la excepción
 
-Con métrica Manhattan sobre coordenadas enteras, varias rutas distintas miden
+Con distancia Manhattan sobre coordenadas enteras, varias rutas distintas miden
 exactamente lo mismo (y en ruta cerrada, cada ruta y su reversa **siempre**
 empatan). Por eso el clásico reporta `empates_en_la_mejor` y el cuántico marca
 todas las mínimas.
@@ -228,7 +227,7 @@ Nada de vecino más cercano, programación dinámica ni poda por cota. Es
 deliberadamente exhaustivo porque es el **grupo de control**. El módulo tiene
 esa advertencia escrita en el encabezado.
 
-**3. Los dos modos corren sobre el mismo mapa y la misma métrica.**
+**3. Los dos modos corren sobre el mismo mapa.**
 Usando `/escenario` sale gratis.
 
 **4. Ramas de integración, no commits directos a `main` cuando el cambio toca
@@ -246,7 +245,7 @@ cada lado.
 
 | Suyo | Por qué |
 |---|---|
-| **Ciudad en cuadrícula + distancia Manhattan** | Más fiel al *"mapa tipo maps"*: un vehículo de reparto circula por calles, no en diagonal. |
+| **Ciudad en cuadrícula + distancia Manhattan** | Más fiel al *"mapa tipo maps"*: un vehículo de reparto circula por calles, no en diagonal. Es la única métrica: se descartó la euclidiana por no encajar en el modelo. |
 | **Una sola llamada resuelve todo el escenario** | Garantiza por construcción que ambos modos comparten el mapa. Quedó como `/api/v1/escenario`. |
 | **Vista de "visibles / eliminadas por ronda"** | Se conserva en la traza cuántica para que su frontend siga sirviendo. |
 | **Orden aleatorio de evaluación** | Quedó como opción `orden=aleatorio` del modo clásico. |

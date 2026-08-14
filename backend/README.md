@@ -18,14 +18,14 @@ Corren con la stdlib, sin instalar nada extra:
 
 ```bash
 cd backend
-python3 -m unittest discover -s tests -v      # 57 pruebas
+python3 -m unittest discover -s tests -v      # 53 pruebas
 ```
 
 ## Estructura
 
 | Archivo | Dueño | Qué hace |
 |---|---|---|
-| `app/geometria.py` | **compartido** | Ciudad en cuadrícula, `Punto`, métricas, permutaciones, catálogo de rutas. |
+| `app/geometria.py` | **compartido** | Ciudad en cuadrícula, `Punto`, distancia Manhattan, permutaciones, catálogo de rutas. |
 | `app/esquemas.py` | **compartido** | Contrato de la API (modelos Pydantic). |
 | `app/clasico.py` | Parte 1 (bit) | Fuerza bruta: evalúa las rutas una por una. |
 | `app/cuantico.py` | Parte 2 (qubit) | Amplificación de amplitud (Grover) sobre rutas. |
@@ -41,15 +41,12 @@ La ciudad es una **cuadrícula tipo Manhattan**: calles horizontales y verticale
 que se cruzan en nodos de coordenadas enteras (`0..grid_size`). Los destinos caen
 sobre esos nodos y el vehículo circula por las calles, nunca en diagonal.
 
+La distancia es **Manhattan** (`|dx| + |dy|`) y no es configurable: el vehículo
+circula por las calles, así que permitirle cortar en diagonal no sería fiel al
+modelo.
+
 Las coordenadas que expone la API son **de cuadrícula, no píxeles** — el
 frontend las escala al canvas que quiera dibujar.
-
-| Métrica | Fórmula | Cuándo |
-|---|---|---|
-| `manhattan` (default) | `\|dx\| + \|dy\|` | El vehículo va por las calles. |
-| `euclidiana` | `√(dx² + dy²)` | Línea recta; sirve para contrastar. |
-
-**Ambos modos deben correr con la misma métrica**, o la comparación no vale.
 
 ## Endpoints
 
@@ -74,7 +71,6 @@ curl "http://127.0.0.1:8000/api/v1/escenario?n=5&semilla=42"
 | `n` | `5` | 2–8 destinos |
 | `grid_size` | `6` | Manzanas por lado |
 | `cerrada` | `false` | `true` = regresa al depósito |
-| `metrica` | `manhattan` | o `euclidiana` |
 | `orden` | `secuencial` | o `aleatorio` (modo clásico) |
 | `semilla` | — | Fija el mapa y la medición final |
 
@@ -168,7 +164,7 @@ el número para demostrarlo):
 
 ### Los empates son la norma, no la excepción
 
-Con métrica Manhattan sobre coordenadas enteras, varias rutas distintas miden
+Con distancia Manhattan sobre coordenadas enteras, varias rutas distintas miden
 exactamente lo mismo (y en ruta cerrada, cada ruta y su reversa siempre
 empatan). Por eso:
 

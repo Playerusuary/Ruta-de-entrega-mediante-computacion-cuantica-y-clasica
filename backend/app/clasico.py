@@ -35,7 +35,6 @@ from enum import Enum
 from typing import List, Optional, Sequence
 
 from .geometria import (
-    Metrica,
     Punto,
     RutaMedida,
     indices_mas_cortas,
@@ -78,7 +77,6 @@ class ResultadoClasico:
     puntos: List[Punto]
     rutas: List[RutaMedida]
     cerrada: bool
-    metrica: Metrica
     orden: OrdenEvaluacion
     total_rutas: int
     pasos: List[PasoClasico]
@@ -86,7 +84,7 @@ class ResultadoClasico:
     mejor_ruta: List[int]
     mejor_distancia: float
     rutas_evaluadas: int
-    # Ids de todas las rutas que empatan en la distancia minima. Con metrica
+    # Ids de todas las rutas que empatan en la distancia minima. Con distancia
     # Manhattan los empates son frecuentes y conviene que el front lo sepa.
     empates_en_la_mejor: List[int]
 
@@ -94,7 +92,6 @@ class ResultadoClasico:
 def simular(
     puntos: Sequence[Punto],
     cerrada: bool = False,
-    metrica: Metrica = Metrica.MANHATTAN,
     orden: OrdenEvaluacion = OrdenEvaluacion.SECUENCIAL,
     semilla: Optional[int] = None,
 ) -> ResultadoClasico:
@@ -103,7 +100,6 @@ def simular(
     Args:
         puntos: destinos; el primero es el deposito y queda fijo.
         cerrada: si el vehiculo regresa al deposito al terminar.
-        metrica: manhattan (por calles) o euclidiana (linea recta).
         orden: en que secuencia se prueban las rutas.
         semilla: solo se usa con orden=ALEATORIO, para que el barajado
             sea reproducible.
@@ -115,7 +111,7 @@ def simular(
         raise ValueError("se necesitan al menos 2 puntos para armar una ruta")
 
     puntos = list(puntos)
-    rutas = medir_todas_las_rutas(puntos, cerrada=cerrada, metrica=metrica)
+    rutas = medir_todas_las_rutas(puntos, cerrada=cerrada)
 
     secuencia = list(rutas)
     if orden == OrdenEvaluacion.ALEATORIO:
@@ -152,7 +148,6 @@ def simular(
         puntos=puntos,
         rutas=rutas,
         cerrada=cerrada,
-        metrica=metrica,
         orden=orden,
         total_rutas=total_rutas(len(puntos)),
         pasos=pasos,

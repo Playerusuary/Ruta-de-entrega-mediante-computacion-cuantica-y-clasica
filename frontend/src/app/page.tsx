@@ -23,13 +23,11 @@ export default function Home() {
       <PanelControl
         n={s.n}
         cerrada={s.cerrada}
-        metrica={s.metrica}
         corriendo={s.corriendo}
         posibilidades={s.posibilidades}
         modoActivo={s.modoActivo}
         onCambiarN={s.cambiarN}
         onCambiarCerrada={s.cambiarCerrada}
-        onCambiarMetrica={s.cambiarMetrica}
         onIniciar={s.iniciar}
         onNuevoMapa={s.nuevoMapa}
       />

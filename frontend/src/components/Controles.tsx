@@ -3,7 +3,6 @@
 import type {
   Escenario,
   EstadoSimulacion,
-  Metrica,
   ModoSimulacion,
   PasoClasico,
   PasoCuantico,
@@ -11,20 +10,22 @@ import type {
 
 /**
  * Panel de control y barra de estado. Portado de `components/Controles.tsx` de
- * la rama del compañero, con los controles nuevos que expone nuestro backend
- * (métrica y ruta cerrada).
+ * la rama del compañero, con el control de ruta cerrada que expone nuestro
+ * backend.
+ *
+ * La distancia es siempre Manhattan y no es configurable: la ciudad es una
+ * cuadrícula y el vehículo circula por las calles, así que no tendría sentido
+ * ofrecer una métrica que le permita cortar en diagonal.
  */
 
 interface PanelProps {
   n: 4 | 5;
   cerrada: boolean;
-  metrica: Metrica;
   corriendo: boolean;
   posibilidades: number;
   modoActivo: ModoSimulacion | null;
   onCambiarN: (n: 4 | 5) => void;
   onCambiarCerrada: (v: boolean) => void;
-  onCambiarMetrica: (m: Metrica) => void;
   onIniciar: (modo: ModoSimulacion) => void;
   onNuevoMapa: () => void;
 }
@@ -32,13 +33,11 @@ interface PanelProps {
 export function PanelControl({
   n,
   cerrada,
-  metrica,
   corriendo,
   posibilidades,
   modoActivo,
   onCambiarN,
   onCambiarCerrada,
-  onCambiarMetrica,
   onIniciar,
   onNuevoMapa,
 }: PanelProps) {
@@ -56,23 +55,6 @@ export function PanelControl({
             texto="5"
             activo={n === 5}
             onClick={() => onCambiarN(5)}
-            disabled={corriendo}
-          />
-        </div>
-      </Campo>
-
-      <Campo etiqueta="Métrica">
-        <div className="flex gap-2">
-          <BotonOpcion
-            texto="Manhattan"
-            activo={metrica === "manhattan"}
-            onClick={() => onCambiarMetrica("manhattan")}
-            disabled={corriendo}
-          />
-          <BotonOpcion
-            texto="Euclidiana"
-            activo={metrica === "euclidiana"}
-            onClick={() => onCambiarMetrica("euclidiana")}
             disabled={corriendo}
           />
         </div>

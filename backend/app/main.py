@@ -13,7 +13,7 @@ POST /api/v1/cuantico/simular   traza del modo cuantico
 GET  /api/v1/escenario          mapa + los dos modos en una sola llamada
 
 El ultimo es el que conviene usar desde el frontend: garantiza por
-construccion que ambos modos corren sobre el mismo mapa con la misma metrica.
+construccion que ambos modos corren sobre el mismo mapa.
 La idea de resolver todo en una llamada viene de la rama del compañero.
 """
 
@@ -34,7 +34,7 @@ from .esquemas import (
     SimulacionCuanticaRequest,
     SimulacionCuanticaResponse,
 )
-from .geometria import GRID_SIZE, Metrica, Punto, generar_puntos
+from .geometria import GRID_SIZE, Punto, generar_puntos
 
 app = FastAPI(
     title="Ruta de entrega - cuantica vs clasica",
@@ -95,7 +95,6 @@ def simular_clasico(payload: SimulacionClasicaRequest) -> SimulacionClasicaRespo
         r = clasico.simular(
             puntos_dominio,
             cerrada=payload.cerrada,
-            metrica=payload.metrica,
             orden=payload.orden,
             semilla=payload.semilla,
         )
@@ -117,7 +116,6 @@ def simular_cuantico(payload: SimulacionCuanticaRequest) -> SimulacionCuanticaRe
         r = cuantico.simular(
             puntos_dominio,
             cerrada=payload.cerrada,
-            metrica=payload.metrica,
             semilla=payload.semilla,
             iteraciones=payload.iteraciones,
         )
@@ -131,7 +129,6 @@ def escenario(
     n: int = Query(5, ge=2, le=8),
     grid_size: int = Query(GRID_SIZE, ge=2, le=20),
     cerrada: bool = Query(False),
-    metrica: Metrica = Query(Metrica.MANHATTAN),
     orden: OrdenEvaluacion = Query(OrdenEvaluacion.SECUENCIAL),
     semilla: Optional[int] = Query(None),
 ) -> EscenarioResponse:
@@ -144,10 +141,10 @@ def escenario(
     generados = _generar(n=n, grid_size=grid_size, semilla=semilla)
     try:
         r_clasico = clasico.simular(
-            generados, cerrada=cerrada, metrica=metrica, orden=orden, semilla=semilla
+            generados, cerrada=cerrada, orden=orden, semilla=semilla
         )
         r_cuantico = cuantico.simular(
-            generados, cerrada=cerrada, metrica=metrica, semilla=semilla
+            generados, cerrada=cerrada, semilla=semilla
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -160,7 +157,6 @@ def escenario(
         puntos=salida_clasico.puntos,
         rutas=salida_clasico.rutas,
         cerrada=cerrada,
-        metrica=metrica,
         semilla=semilla,
         clasico=salida_clasico,
         cuantico=salida_cuantico,
@@ -193,7 +189,6 @@ def _clasico_out(r) -> SimulacionClasicaResponse:
         puntos=[p.__dict__ for p in r.puntos],
         rutas=[ruta.__dict__ for ruta in r.rutas],
         cerrada=r.cerrada,
-        metrica=r.metrica,
         orden=r.orden,
         total_rutas=r.total_rutas,
         pasos=[paso.__dict__ for paso in r.pasos],
@@ -210,7 +205,6 @@ def _cuantico_out(r) -> SimulacionCuanticaResponse:
         puntos=[p.__dict__ for p in r.puntos],
         rutas=[ruta.__dict__ for ruta in r.rutas],
         cerrada=r.cerrada,
-        metrica=r.metrica,
         total_rutas=r.total_rutas,
         pasos=[
             {
