@@ -52,9 +52,9 @@ export default function Home() {
 
       <CityMap
         escenario={s.escenario}
-        rutaClasicaId={s.pasoClasico?.ruta_id ?? null}
-        mejorParcial={s.pasoClasico?.mejor_ruta ?? null}
-        probabilidades={s.pasoCuantico?.probabilidades ?? null}
+        rutaClasicaId={s.rutaClasicaId}
+        mejorParcial={s.mejorParcial}
+        probabilidades={s.probabilidades}
         rutaGanadora={s.rutaGanadora}
       />
 

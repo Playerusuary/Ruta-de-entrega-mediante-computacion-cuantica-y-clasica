@@ -165,6 +165,14 @@ export function useSimulacion() {
       ? (pasoClasico?.indice ?? 0)
       : (pasoCuantico?.indice ?? 0);
 
+  // Lo que el mapa debe pintar en este frame.
+  //
+  // Al terminar la búsqueda se descartan TODAS las rutas y solo sobrevive la
+  // ganadora: el mapa queda limpio con la respuesta, sin la maraña de las
+  // candidatas perdedoras encima. Mientras corre sí se ven, porque ver a la
+  // simulación descartarlas es justamente lo que se está mostrando.
+  const finalizado = estado === "finalizado";
+
   return {
     // configuración
     n,
@@ -181,12 +189,16 @@ export function useSimulacion() {
     iniciar,
     nuevoMapa,
     repetir,
-    // frame actual
+    // frame actual (para la barra de estado)
     pasoClasico,
     pasoCuantico,
     rutaGanadora,
     contador,
     totalFrames,
+    // lo que dibuja el mapa: al finalizar solo queda la ganadora
+    rutaClasicaId: finalizado ? null : (pasoClasico?.ruta_id ?? null),
+    mejorParcial: finalizado ? null : (pasoClasico?.mejor_ruta ?? null),
+    probabilidades: finalizado ? null : (pasoCuantico?.probabilidades ?? null),
     posibilidades: escenario?.clasico.total_rutas ?? factorial(n - 1),
   };
 }

@@ -210,7 +210,9 @@ export function BarraEstado({
         <span className="text-neutral-500"> / {totalFrames}</span>
       </span>
 
-      {modoActivo === "clasico" && pasoClasico && (
+      {/* Datos del frame en curso. Al finalizar desaparecen: el mapa ya solo
+          muestra la ganadora, y seguir enseñando "esta ruta" lo contradiría. */}
+      {estado === "corriendo" && modoActivo === "clasico" && pasoClasico && (
         <>
           <span className="text-neutral-300">
             Esta ruta:{" "}
@@ -227,7 +229,7 @@ export function BarraEstado({
         </>
       )}
 
-      {modoActivo === "cuantico" && pasoCuantico && (
+      {estado === "corriendo" && modoActivo === "cuantico" && pasoCuantico && (
         <span className="text-neutral-300">
           Confianza:{" "}
           <span className="font-semibold text-indigo-300 tabular-nums">
