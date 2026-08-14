@@ -15,22 +15,24 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import clasico  # noqa: E402
+from app.clasico import OrdenEvaluacion  # noqa: E402
 from app.geometria import (  # noqa: E402
     Punto,
     distancia,
     generar_puntos,
+    indices_mas_cortas,
     longitud_ruta,
+    medir_todas_las_rutas,
     rutas_posibles,
     total_rutas,
 )
 
 
 def _cuadrado():
-    """Cuatro esquinas de un cuadrado de lado 10, con la base en el origen.
+    """Cuatro esquinas de un cuadrado de lado 10, con el deposito en el origen.
 
-    Sirve porque la respuesta se conoce a mano: el recorrido por el perimetro
-    (0 -> 1 -> 2 -> 3) mide 30 abierto y 40 cerrado, y cualquier ruta que cruce
-    la diagonal mide mas.
+    Sirve porque la respuesta se conoce a mano: recorrer el perimetro
+    (0 -> 1 -> 2 -> 3) mide 30 abierto y 40 cerrado.
     """
     return [
         Punto(id=0, x=0, y=0, etiqueta="Base"),
@@ -41,16 +43,20 @@ def _cuadrado():
 
 
 class TestGeometria(unittest.TestCase):
-    def test_distancia_es_euclidiana(self):
-        a = Punto(id=0, x=0, y=0)
-        b = Punto(id=1, x=3, y=4)
-        self.assertAlmostEqual(distancia(a, b), 5.0)
+    def test_distancia_va_por_las_calles_no_en_diagonal(self):
+        a, b = Punto(id=0, x=0, y=0), Punto(id=1, x=3, y=4)
+        # Por calles son 3 + 4 = 7, no la diagonal euclidiana de 5.
+        self.assertAlmostEqual(distancia(a, b), 7.0)
 
     def test_longitud_abierta_no_incluye_regreso(self):
-        self.assertAlmostEqual(longitud_ruta(_cuadrado(), cerrada=False), 30.0)
+        self.assertAlmostEqual(
+            longitud_ruta(_cuadrado(), cerrada=False), 30.0
+        )
 
     def test_longitud_cerrada_agrega_el_tramo_de_vuelta(self):
-        self.assertAlmostEqual(longitud_ruta(_cuadrado(), cerrada=True), 40.0)
+        self.assertAlmostEqual(
+            longitud_ruta(_cuadrado(), cerrada=True), 40.0
+        )
 
     def test_ruta_de_un_punto_mide_cero(self):
         self.assertEqual(longitud_ruta([Punto(id=0, x=5, y=5)]), 0.0)
@@ -60,10 +66,9 @@ class TestGeometria(unittest.TestCase):
         self.assertEqual(total_rutas(4), 6)
         self.assertEqual(total_rutas(8), 5040)
 
-    def test_la_base_queda_fija_en_todas_las_rutas(self):
-        puntos = _cuadrado()
-        rutas = list(rutas_posibles(puntos))
-        self.assertEqual(len(rutas), 6)  # 3! con la base fija
+    def test_el_deposito_queda_fijo_en_todas_las_rutas(self):
+        rutas = list(rutas_posibles(_cuadrado()))
+        self.assertEqual(len(rutas), 6)  # 3! con el deposito fijo
         for ruta in rutas:
             self.assertEqual(ruta[0].id, 0)
 
@@ -78,24 +83,50 @@ class TestGeometria(unittest.TestCase):
             self.assertEqual({p.id for p in ruta}, esperado)
             self.assertEqual(len(ruta), len(puntos))
 
+    def test_la_ruta_cerrada_vuelve_al_deposito_en_el_orden(self):
+        rutas = medir_todas_las_rutas(_cuadrado(), cerrada=True)
+        for r in rutas:
+            self.assertEqual(r.orden[0], 0)
+            self.assertEqual(r.orden[-1], 0)
+            self.assertEqual(len(r.orden), 5)  # 4 puntos + regreso
+
+    def test_la_ruta_abierta_no_repite_el_deposito(self):
+        rutas = medir_todas_las_rutas(_cuadrado(), cerrada=False)
+        for r in rutas:
+            self.assertEqual(len(r.orden), 4)
+            self.assertEqual(r.orden.count(0), 1)
+
+    def test_indices_mas_cortas_detecta_empates(self):
+        # En ruta cerrada, cada ruta y su reversa miden lo mismo.
+        rutas = medir_todas_las_rutas(_cuadrado(), cerrada=True)
+        marcadas = indices_mas_cortas(rutas)
+        self.assertGreaterEqual(len(marcadas), 2)
+        minima = min(r.distancia for r in rutas)
+        for rid in marcadas:
+            self.assertAlmostEqual(rutas[rid].distancia, minima)
+
+    def test_los_puntos_caen_en_nodos_enteros_de_la_cuadricula(self):
+        for p in generar_puntos(n=5, grid_size=6, semilla=7):
+            self.assertEqual(p.x, int(p.x))
+            self.assertEqual(p.y, int(p.y))
+            self.assertTrue(0 <= p.x <= 6 and 0 <= p.y <= 6)
+
+    def test_los_puntos_no_se_encinan(self):
+        coords = [(p.x, p.y) for p in generar_puntos(n=8, grid_size=6, semilla=1)]
+        self.assertEqual(len(coords), len(set(coords)))
+
     def test_misma_semilla_mismo_mapa(self):
-        a = generar_puntos(n=5, semilla=42)
-        b = generar_puntos(n=5, semilla=42)
-        self.assertEqual(a, b)
+        self.assertEqual(generar_puntos(n=5, semilla=42), generar_puntos(n=5, semilla=42))
 
     def test_semillas_distintas_dan_mapas_distintos(self):
         self.assertNotEqual(generar_puntos(n=5, semilla=1), generar_puntos(n=5, semilla=2))
 
-    def test_los_puntos_generados_respetan_margen_y_separacion(self):
-        puntos = generar_puntos(n=5, ancho=800, alto=600, semilla=7, margen=60)
-        for p in puntos:
-            self.assertGreaterEqual(p.x, 60)
-            self.assertLessEqual(p.x, 800 - 60)
-            self.assertGreaterEqual(p.y, 60)
-            self.assertLessEqual(p.y, 600 - 60)
-        for i, a in enumerate(puntos):
-            for b in puntos[i + 1 :]:
-                self.assertGreaterEqual(distancia(a, b), 90.0)
+    def test_no_caben_mas_puntos_que_nodos(self):
+        # Una cuadricula de 2x2 tiene 9 nodos: 8 puntos caben.
+        self.assertEqual(len(generar_puntos(n=8, grid_size=2, semilla=1)), 8)
+        # 30 no.
+        with self.assertRaises(ValueError):
+            generar_puntos(n=30, grid_size=2)
 
 
 class TestSimulacionClasica(unittest.TestCase):
@@ -138,9 +169,14 @@ class TestSimulacionClasica(unittest.TestCase):
             record = min(record, paso.distancia)
 
     def test_el_primer_paso_siempre_es_mejor(self):
-        # No hay record previo, asi que la primera ruta siempre lo establece.
         r = clasico.simular(generar_puntos(n=5, semilla=5))
         self.assertTrue(r.pasos[0].es_mejor)
+
+    def test_la_mejor_distancia_coincide_con_las_rutas_marcadas(self):
+        r = clasico.simular(generar_puntos(n=5, semilla=13), cerrada=True)
+        for rid in r.empates_en_la_mejor:
+            self.assertAlmostEqual(r.rutas[rid].distancia, r.mejor_distancia)
+        self.assertIn(r.mejor_ruta_id, r.empates_en_la_mejor)
 
     def test_la_ruta_cerrada_nunca_mide_menos_que_la_abierta(self):
         puntos = generar_puntos(n=5, semilla=21)
@@ -149,11 +185,22 @@ class TestSimulacionClasica(unittest.TestCase):
         self.assertGreater(cerrada.mejor_distancia, abierta.mejor_distancia)
         self.assertEqual(cerrada.rutas_evaluadas, abierta.rutas_evaluadas)
 
-    def test_cada_paso_arrastra_la_mejor_ruta_vigente(self):
-        r = clasico.simular(_cuadrado())
-        for paso in r.pasos:
-            self.assertEqual(len(paso.mejor_ruta), 4)
-            self.assertEqual(paso.mejor_ruta[0], 0)
+    def test_orden_aleatorio_evalua_el_mismo_conjunto(self):
+        puntos = generar_puntos(n=5, semilla=8)
+        sec = clasico.simular(puntos, orden=OrdenEvaluacion.SECUENCIAL)
+        alea = clasico.simular(puntos, orden=OrdenEvaluacion.ALEATORIO, semilla=8)
+        self.assertEqual(
+            sorted(p.ruta_id for p in sec.pasos),
+            sorted(p.ruta_id for p in alea.pasos),
+        )
+        # Y encuentran la misma distancia minima, aunque en distinto momento.
+        self.assertAlmostEqual(sec.mejor_distancia, alea.mejor_distancia)
+
+    def test_orden_aleatorio_es_reproducible_con_semilla(self):
+        puntos = generar_puntos(n=5, semilla=8)
+        a = clasico.simular(puntos, orden=OrdenEvaluacion.ALEATORIO, semilla=77)
+        b = clasico.simular(puntos, orden=OrdenEvaluacion.ALEATORIO, semilla=77)
+        self.assertEqual([p.ruta_id for p in a.pasos], [p.ruta_id for p in b.pasos])
 
     def test_dos_corridas_iguales_dan_la_misma_traza(self):
         puntos = generar_puntos(n=5, semilla=8)
